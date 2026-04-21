@@ -1,0 +1,191 @@
+
+Was tut das Tool
+----------------
+0 Input ist übersetzbarer Delphi-Code: Projekt, Library, Package oder einzelne Unit.
+  Implementiert ist der Sprachumfang von Delphi 11.3
+
+1 Source-Files werden geparst und alle Elemente entsprechend der statischen Blockstruktur
+  mit Typ-Informationen in einen TreeView einsortiert. Elemente sind im wesentlichen die
+  Identifier, aber auch Pascal-Direktiven und -Attribute, Compiler-Direktiven und
+  -Schalter, Literale und Dateinamen sowie falls gewünscht die Keywords.
+
+2 Alle Referenzen (textuelle Vorkommen) dieser Ids werden daneben als Liste von
+  Code-Snippets angezeigt. Dazu der Referenz-Typ, also deklarierend, lesend, schreibend.
+
+
+Nutzen
+------
+- Zusätzlich zum üblichen funktionsbezogen-sequentiellen Blick auf die Anweisungen im
+  Quellcode bekommt man schnellen Zugriff auf den "Lebenslauf" eines Identifiers,
+  z.B. einer Variablen oder eines Propertys.
+
+- schnelles projektweites intelligentes (weil syntax- statt text-basiertes) Suchen und
+  Umbenennen
+
+- Anbindung an IDE per Drag&Drop: Ziehen eines Code-Snippets in die IDE springt dorthin
+
+- Filterung nach speziellen Nutzungen (z.B. unused Variables, Generics, Overloads, ...)
+
+
+Regeln für die Ids im Treeview
+------------------------------
+- Variablen mit eindeutig zugeordnetem Speicher erhalten die gesamte Typ-Struktur kopiert
+- Zugriffe über Pointer (auch Klassen) sind nicht eindeutig einer Variablen zuzuordnen.
+  Sie landen deshalb unter dem zugehörigen Typ.
+
+
+Specials
+--------
+1 Units dürfen fehlen. Nicht deklarierte Elemente werden in einer <unresolved>-Liste
+  geführt. Natürlich ist solch ein Ergebnis nicht mehr exakt, trotzdem kann man idR damit
+  arbeiten.
+
+  Empfehlung: Ohne Suchpfade für Nicht-Projekt-Units anfangen, wenn nötig hinzufügen.
+  Grenzen wenn ein Identifier nicht deklariert ist:
+    - falsche overload-Zuordnung wegen fehlender types
+    - Gefahr falscher Zuordnung zu Identifier gleichen Namens, auch zu System-Ids
+      -> dann ggf auch falscher Referenz-Typ für Parameter
+
+2 Ids aus System.pas sind teilweise integriert, können nach Bedarf ergänzt werden. Dazu
+  a) Projekt-Option "Use System_Ref.pas" setzen (Ctrl-F11)
+  b) Datei "System_Ref.pas" anlegen als "Unit System" mit den zusätzlich Deklarationen...
+  c) ... und im Projekt- oder Programm-Verzeichnis ablegen
+
+
+Was geht noch nicht
+-------------------
+- Allgemeiner Test-Status: siehe Datei _Versionen.txt
+- $IF: nur einfache declared- und defined-Ausdrücke erlaubt,
+       das kann leider zu Parser-Fehlern oder auch falschen Zuordnungen führen!
+- Typisierte Generics werden nicht unterschieden sondern alle unter dem generischen Typ
+  eingetragen
+  -> TArray<byte> ist der gleiche Identifier wie TArray<integer>
+- Identifier in ASM-Code
+- Projekt-Gruppen
+  -> Workaround: Package erstellen die alle Units der Projektgruppe beinhaltet
+- horizontales Scrollen im Source-Viewer (bitte erstmal F12 für FullScreen benutzen)
+- typgerechte Zuordnung von Operatoren
+- FileViewer mit Editor-Funktionen
+- Einige fehlende Kompatibilitätsregeln für die Zuordnung zu overload-Methoden
+- Export der Ergebnisse
+
+Was geht noch nicht (und bleibt wohl auch so)
+---------------------------------------------
+- $IF mit Berechnungen, insbesondere sizeOf()
+- vollständig integrierte System.pas
+
+Wenn's nicht funktioniert...
+----------------------------
+- Syntaxfehler in der Quelle?
+- $IF mit nicht-einfacher Bedingung?
+- fehlende oder falsche Compiler-Defines ?
+  -> Zum Setzen der Defines VOR dem ersten Parserlauf AutoStart des Parsers verhindern:
+     1. vor dem Öffnen des Projektes die MainMenu-Option->"AutoParse after FileOpen"
+        deaktivieren
+     2  Projekt öffnen
+     3  Optionen->Projekt-Optionen: Jetzt die Defines (und andere Optionen) eintragen
+     4  Parser-Start mit F5
+     5  ggf Option->AutoParse wieder einschalten
+- sonst: bitte Hinweis zur Reproduzierbarkeit an mich
+
+Anzeige und Bedienung
+---------------------
+- Links: Identifier und alle anderen Source-Elemente als Treeview.
+         Es gibt die Ansichten "alle" und "gefiltert".
+
+    - Farbe nach Id-Typ (grau = unbenutzt)
+    - Doppelclick  : zum Typ bzw. Parent
+    - F7           : Suche, es wird standardmäßig nach passendem Wortanfang gesucht.
+                        Punkt am Anfang: Suche Übereinstimmung auch hinter dem Wortanfang
+                        Punkt am Ende  : Suche Übereinstimmung am Wortende
+    - F3           : Weitersuchen
+    - TAB          : Wechsel zwischen Control "Id suchen" und "Id-TreeView"
+    - TAB+Ctrl     : Wechsel zwischen Ansicht "alle Ids" und "gefiltert"
+    - F6           : Filtere ohne Dialog nach aktuellem Id-Namen
+                     Aus Filter-Ansicht: zurück, dabei den aktuellen Id       mitnehmen
+    - F6+Shift     : Aus Filter-Ansicht: zurück, dabei den aktuellen Id NICHT mitnehmen
+    - F6+Ctrl      : Filter-Dialog
+    - F11          : Baum reduzieren (= selektierten Id freistellen)
+    - BACK         : voriger Id
+    - RETURN       : ALLE Sub-Ids expandieren / verbergen
+    - Pfeiltasten  : Standard-TreeView-Navigation
+    - Ctrl-<Key>   : GOTO HotKey (mit Shift: SET Hotkey ).
+                     Die Haupt-Ebenen des Id-Baums sind über ihre Anfangsbuchstaben
+                     immer als Ziel definiert
+    - Ctrl-Del     : Hotkey für aktuellen Id löschen (mit Shift: alle löschen)
+    - Shift-TAB    : Fokus zwischen visuellen Controls wechseln
+
+- Rechts: zum selektierten Id gehörige Referenz-Liste
+
+    - Farbe nach Referenz-Typ (Declare / Read / Write / ReadAdress / Unknown )
+    - Doppelclick  : zum markierten Id (unter dem MausCursor) springen.
+                     Falls keiner markiert (freier Bereich) zum File-Viewer.
+    - Num +/-      : Größe des Code-Ausschnitts ändern
+    - Pfeiltasten  : Standard-Listen-Navigation
+    - F9           : Writes-only, lesende Referenzen ausblenden
+
+- FileViewer: ganze Datei im Extra-Fenster
+
+    - Doppelclick : zum markierten Id (unter dem MausCursor)
+    - Escape      : Viewer schließen
+
+- Nassi-Viewer: aktuelle Referenz mit Kontext als Nassi-Shneiderman-Diagramm
+
+    - F1          : Hilfe zum Nassi-Viewer
+    - Escape      : eine SubView-Ebene hoch bzw. Viewer schließen
+
+
+weitere Funktionen (siehe auch RefShortCuts.xls)
+------------------------------------------------
+Popup-Menüs    : für alle Fenster
+F1             : Hilfe (diese Datei) anzeigen
+Shift-F1       : Info
+F2             : Identifier-Verlauf (Historie)
+Ctrl-F11       : Projekt-Optionen
+F10            : Zähler für Id-Typ und Referenz-Typ anzeigen
+Ctrl-F10       : StatusBar ausblenden
+F5             : Aktualisieren, Reparse
+F12            : Full Screen
+Ctrl-Num +/-   : Schriftgröße ändern
+Drag&Drop      : Anzeige des aktuellen Code-Snippets in der IDE (das Projekt muss dort
+                 bereits geöffnet sein)
+Escape         : Parser-Abbruch (sobald ohne Konsistenz-Probleme möglich)
+< ohne Hotkey >: Identifier alphabetisch sortieren (kann nicht rückgängig gemacht werden)
+< ohne Hotkey >: Identifier umbenennen (auch Literale und CompilerDefines)
+
+Optionen
+--------
+- Programm (über MainMenu -> Options)
+  - Default für Pfad-Makros
+      - entspricht dem "$BDS" aus Delphi-Optionen
+      - kann in allen Pfaden der Projekt-Optionen benutzt werden
+  - Default für Delphi-Bibliotheks-Pfade (Source-Paths)
+      - entspricht der IDE-Option aus Sprache->Delphi->Bibliothek->Suchpfad
+      - wird für NEUE Projekte in deren Projekt-Optionen kopiert
+  - Default für Unit-Gültigkeitsbereichsnamen (Namespaces)
+      - entspricht der IDE-Option aus Sprache->Delphi->Unit-Gültigkeitsbereichsnamen
+      - wird für NEUE Projekte in deren Projekt-Optionen kopiert
+  - Auto-Parse
+      Ausschalten, um ERST die Projekt-Optionen zu setzen
+  - Projekt-Inis in Projekt-Pfad
+      Datei mit Projekt-Optionen im Projekt-Pfad statt unter AppData
+
+- Projekt ( bei geladenem Projekt über Ctrl-F11 )
+  - Pfad-Makros
+  - Suchpfade für Delphi-Library-Units, von diesen wird nur das Interface geparst
+      Diese Suchpfade können über die "enable"-Box passiv geschaltet werden
+  - Suchpfade für Projekt-Library-Units, von diesen wird nur das Interface geparst
+  - Suchpfade für weitere Units
+  - Unit-Gültigkeitsbereiche
+  - vom Projekt definierte Symbole für bedingte Compilierung
+  - vom System definierte Symbole für bedingte Compilierung (Plattform, Version, Build)
+  - Option Schlüsselwörter und/oder Schlüsselsymbole in Baum aufnehmen (nächster Scan)
+  - Option auch Formulare (dfm, xfm, lfm) parsen
+  - Option type "string" wird nicht als "shortstring" interpretiert (wie $LONGSTRINGS)
+  - Option nur Library-intern benutzte Identifier ausblenden
+  - Option integrierte System.pas durch eigene System_Ref.pas ergänzen
+
+Kontakt
+-------
+mailto:denkDirNix@mail.de
+
