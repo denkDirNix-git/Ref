@@ -23,9 +23,6 @@ uses
 {$R *.RES}
 
 begin
-//  {$IFDEF DEBUG}
-    ReportMemoryLeaksOnShutdown := true;
-//  {$ENDIF}
   Application.Initialize;
   Application.CreateForm(TfrmMain, frmMain);
   Application.CreateForm(TfrmFileOptions, frmFileOptions);
