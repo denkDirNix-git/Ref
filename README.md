@@ -10,7 +10,7 @@ Referenzliste für alle! Bezeichner im Projekt
 
 Übersetzung:
 Die DEBUG-Variante benötigt Units aus meinem Projekt TraceDx.
-Deshalb wäre vorzugsweise die RELEASE-Variante erzeugen.
+Deshalb wäre vorzugsweise die RELEASE-Variante zu erzeugen.
 
 
 Bedienung:
