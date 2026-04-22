@@ -1243,7 +1243,7 @@ begin
 
   frmMain.PopupItmIdRename.Enabled := ( p^.Typ in [id_Unbekannt..id_Impl, id_KeyWord] ) and
                                       ( p^.AcList <> nil )                              and
-                                      ( p^.IdFlags * [tIdFlags.IsDummy, tIdFlags.IsOverload] = [] );
+                                      ( p^.IdFlags * [tIdFlags.IsDummy{, tIdFlags.IsOverload}] = [] );
 
   frmMain.actIdFilterHierarchy.Enabled := p^.IdFlags * [tIdFlags.IsClassType, tIdFlags.IsInterface] <> [];
 
@@ -1923,12 +1923,17 @@ end;
 procedure TfrmMain.PopupItmIdRenameClick( Sender: TObject );
 const cIdTypeModule = [id_NameSpace..id_Unit];
 var pAc : pAcInfo;
+    ov  : boolean;
+    pIdOld,
     pId : pIdInfo;
+    old,
     new : string;
     sw  : TStreamWriter;
 begin
   {$IFDEF TraceDx} {$IFNDEF TraceDxSub} TraceDx.Call( 'PopupItmIdRenameClick' ); {$ENDIF} {$ENDIF}
   pId := MyTv[AktTv].AktNode;
+  old := pId^.Name;
+  ov  := isOverload in pId^.IdFlags;
 
   { 0. Warning }
   RefactorWarning( 'Rename' );
@@ -1957,23 +1962,23 @@ begin
     then exit;
 
   { 2. get new Name: }
-  new := InputBox( 'Rename Identifier ' + pId^.Name, 'Enter new name:', pId^.Name );
-  if ( new = '' ) or ( new.ToLower = pId^.Name.ToLower ) then exit;
+  new := InputBox( 'Rename Identifier ' + old, 'Enter new name:', old );
+  if ( new = '' ) or ( new.ToLower = old.ToLower ) then exit;
 
   { 3. Check for new already existing: }
-  AktDeclareOwner := pId;
+  pIdOld := pId;
   pId := TListen.SucheIdInBloecken( 0, new );
   if pId <> nil
     then begin MessageDlg( 'New Name "' + new + '" already exists as' + sLineBreak + TListen.getBlockNameLong( pId, dTrennView ), mtError, [mbOK], 0 ); exit end;
 
   { 4. Doit: }
   ShowMessage( 'List of renamed Files:' +
-               TFncIdentifier.Rename( AktDeclareOwner, new ));
+               TFncIdentifier.Rename( pIdOld, new ));
   mItmFileReParseClick( nil );
 
   { 5. Overload-Warning: }
-  if IsOverload in AktDeclareOwner^.IdFlags then
-    ShowMessage( 'Please check manually for more Overloads to be renamed!' )
+  if ov then
+    ShowMessage( 'Please check manually for more Overloads in other Units and  Unresolved-Block which were not renamed!' )
 end;
 
 {$ENDREGION }
@@ -4111,8 +4116,8 @@ begin
     {$IFDEF SaveTree}
       if not Abbruch { Parser wurde nicht per Escape abgebrochen } then begin
         {$IFDEF VerifyDx}
-        if not VerifyDx.Running then begin
-          VerifyDx.CompareStart( TPath.GetFileName( frmMain.dlgOpen.Filename ), {$IFDEF CmpTrace} true {$ELSE} false {$ENDIF} );
+        if not VerifyDx.Running   and
+           VerifyDx.CompareStart( TPath.GetFileName( frmMain.dlgOpen.Filename ), {$IFDEF CmpTrace} true {$ELSE} false {$ENDIF} ) then begin
           {$IFDEF CmpTree}
             VerifyDx.SetDataFile( frmMain.dlgOpen.Filename + cExtensionTree, true, true );
           {$ENDIF}
