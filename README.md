@@ -1,4 +1,4 @@
-# Structured Identifier-Reference for Delphi-Source
+# Structured Identifier-Reference for Delphi-Source (up to 11.3)
 
 Referenzliste für alle! Bezeichner im Projekt
 - Bezeichner-Baum mit Such- und Filter-Funktion
