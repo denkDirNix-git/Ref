@@ -157,6 +157,8 @@ uses
 
 const
   cProgName       = 'Nassi' {$IFDEF Pascal86} + '86' {$ENDIF};
+  cProgram        = 'Nassi';
+  cProgramIni     = '_Nassi.ini';
   cProgNameExt    = 'nassi';
   cDenkDirNix     = 'DenkDirNix';
   cMailTo         = 'mailto: ' + cDenkDirNix + '@mail.de';
@@ -880,12 +882,12 @@ begin
     Search.Pos.ze   := SuchZeile;
     Search.Pos.sp   := SuchSpalte;
     Search.Found;
-    frmNassi.ShowModal  // nicht mehrfach aufrufen
+    frmNassi.ShowModal;  // nicht mehrfach aufrufen
   except
     frmNassi.OnResize := nil;             //  kommt sonst beim Beenden
-    frmNassi.Free;
     ShowMessage( 'Nassi not available' )
   end;
+  frmNassi.Free
 end;
 
 {$ENDREGION}
@@ -981,14 +983,14 @@ end;
 
 (* FormCreate *)
 procedure TfrmNassi.FormCreate( Sender: TObject );
-const cProgram = 'Program';
 var b  : boolean;
     Ini: TMemIniFile;
 begin
   {$IFDEF TraceDx} TraceDx.Call( 'TfrmNassi.FormCreate' ); {$ENDIF}
+  Self.Name := 'frmNassi';
   TIni.ReadForm( Self );
 
-  Ini := TMemIniFile.Create( TMyApp.DirUser + 'Program.ini' );
+  Ini := TMemIniFile.Create( TMyApp.DirUser + cProgramIni );
   if not Ini.ReadBool( cProgram, cMenu        , true ) then mItmViewMenu.Click;
   if not Ini.ReadBool( cProgram, cSubInterface, true ) then mItmViewAutoSubInterface.Click;
   if not Ini.ReadBool( cProgram, cIndentThen  , true ) then mItmViewIndentThen.Click;
@@ -1479,16 +1481,16 @@ end;
 
 (* mItmOptionsSaveGlobalClick *)
 procedure TfrmNassi.mItmOptionsSaveGlobalClick( Sender: TObject );
-const cProgram = 'Program';
 var Ini: TMemIniFile;
 begin
   {$IFDEF TraceDx} TraceDx.Send( 'mItmOptionsSaveGlobalClick' ); {$ENDIF}
-  Ini := tMemIniFile.Create( TMyApp.DirUser + 'Program.ini' );
+  Ini := tMemIniFile.Create( TMyApp.DirUser + cProgramIni );
   Ini.WriteString( cProgram, cProgName    , cVersion     );
   Ini.WriteBool  ( cProgram, cMenu        , Menu <> nil  );
   Ini.WriteBool  ( cProgram, cSubInterface, SubInterface );
   Ini.WriteBool  ( cProgram, cIndentThen  , IndentThen   );
   Ini.WriteBool  ( cProgram, cCutComments , CutComment   );
+  Ini.UpdateFile;
   Ini.Free;
 end;
 
@@ -1544,7 +1546,9 @@ initialization
   {$ENDIF}
   // https://docs.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-seterrormode
 //  SetErrorMode( SEM_FAILCRITICALERRORS );
+  {$IFNDEF REF}
   TMyApp.Init( cProgName, cVersion, '2'  )
+  {$ENDIF}
 
 end.
 

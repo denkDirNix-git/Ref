@@ -259,7 +259,7 @@ begin
               dec( Anzahl )
               end
             else begin
-              if not pAktUnit^.IfOptLokal[cd_LongStrings] then begin
+              if not pAktUnit^.IfOptLokal[high( pAktUnit^.IfOptLokal)][cd_LongStrings] then begin
                 TListen.MoveAc( pId^.LastAc, pSysId[syShortString] );                  // ac von string -> shortstring
                 TListen.CopyTypeInfos( pSysId[syShortString], pIdOwner );
                 Next.Id.Str := dArraySymbol;
@@ -483,7 +483,7 @@ begin
       kw_KlammerAuf: begin                 // TEnum = (c1, c2, c3)
         include( pIdOwner^.IdFlags, tidFlags.NoCopy );
         TListen.EnterBlock( pIdOwner );
-        if not pAktUnit^.IfOptLokal[cd_ScopedEnums] then
+        if not pAktUnit^.IfOptLokal[high( pAktUnit^.IfOptLokal )][cd_ScopedEnums] then
           TListen.InsertVirtualEnum( pIdOwner );
 
         if pIdOwner^.Typ = id_Type
@@ -498,7 +498,7 @@ begin
           TListen.CopyTypeInfos( pIdOwner, pId );
           if Next.getIf( kw_Gleich ) then
             ParseExpression( false, ExprType );    // EnumConst bekommt konkrete Ordinalzahl zugewiesen
-          if not pAktUnit^.IfOptLokal[cd_ScopedEnums] and ( InterfaceSection in pIdOwner^.IdFlags2 ) then
+          if not pAktUnit^.IfOptLokal[high( pAktUnit^.IfOptLokal )][cd_ScopedEnums] and ( InterfaceSection in pIdOwner^.IdFlags2 ) then
             include( pId^.IdFlags2, InterfaceSection )
         until Next.Test2( kw_KlammerZu, kw_Komma );
 

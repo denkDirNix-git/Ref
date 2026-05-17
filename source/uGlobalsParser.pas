@@ -179,7 +179,7 @@ type
                   HasHotKey,         //  6
                   LiteralSpecial,    //  7  char,string: enthält Notation ^G oder #7     int,real: negativ (noch nicht realisiert)
                   InterfaceSection,  //  8  Deklariert in der Interface-Section
-                  f9,
+                  isMultiLine,       //  9  MultiLine-String
                   f10,f11,f12,f13,f14,f15,f16,f17,f18,f19,
                   f20,f21,f22,f23,f24,f25,f26,f27,f28,f29,
                   f30,f31
@@ -576,7 +576,7 @@ type
 
                            pd_LIBRARY, pd_LOCAL,
                            pd_MESSAGE,
-                           pd_NAME, pd_NEAR, pd_NODEFAULT,
+                           pd_NAME, pd_NEAR, pd_NODEFAULT, pd_NORETURN,
                            pd_ON, pd_OPERATOR, pd_OUT, pd_OVERLOAD, pd_OVERRIDE,
                            pd_PACKAGE, pd_PASCAL, pd_PLATFORM, pd_PRIVATE, pd_PROTECTED, pd_PUBLIC, pd_PUBLISHED,
 
@@ -621,6 +621,7 @@ var
                    ( Name: 'name';         Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
                    ( Name: 'near';         Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
                    ( Name: 'nodefault';    Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
+                   ( Name: 'noreturn';     Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
                    ( Name: 'on';           Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
                    ( Name: 'operator';     Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
                    ( Name: 'out';          Typ: id_PascalDirective; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbPascalDirs] ),
@@ -663,7 +664,7 @@ const
   cPascalDirektiveSets: array[tPascalDirektiveSets] of tPascalDirektiveSet = (
   {ds_PROC}              [pd_NEAR, pd_FAR, pd_EXPORT, pd_LOCAL, pd_RESIDENT,     // gibt's nicht mehr
                           pd_ASSEMBLER, pd_OVERRIDE,
-                          pd_REGISTER, pd_PASCAL, pd_CDECL, pd_VARARGS, pd_SAFECALL, pd_STDCALL, pd_WINAPI,
+                          pd_REGISTER, pd_PASCAL, pd_CDECL, pd_VARARGS, pd_SAFECALL, pd_STDCALL, pd_WINAPI, pd_NORETURN,
                           pd_DEPRECATED, pd_LIBRARY, pd_PLATFORM,
                           pd_STATIC, pd_UNSAFE, pd_EXTERNAL, pd_FORWARD,
                           pd_ABSTRACT, pd_REINTRODUCE, pd_DYNAMIC, pd_VIRTUAL, pd_OVERRIDE, pd_FINAL,
@@ -689,28 +690,28 @@ const
 
 type
   tCompilerDirektiven  = ( cd_Unbekannt,
-                           cd_Align, cd_AppType, cd_Assertions, cd_AsmMode {FreePascal},
+                           cd_Align, cd_AppType, cd_Assertions, cd_AsmMode {FreePascal}, cd_AllowBind, cd_AllowIsolation,
                            cd_BoolEval,
                            cd_CodeAlign, cd_CodeSegmentAttribute,
-                           cd_Define, cd_DebugInfo, cd_DenyPackageUnit, cd_Description, cd_DesignOnly, cd_DefinitionInfo,
+                           cd_Define, cd_DebugInfo, cd_DenyPackageUnit, cd_Description, cd_DesignOnly, cd_DefinitionInfo, cd_DynamicBase,
                            cd_Else, cd_EndIf, cd_ElseIf, cd_Extension, cd_ExtendedSyntax, cd_ExtendedCompatibility, cd_ExternalSym,
                               cd_ExcessPrecision, cd_EndRegion, cd_EmulateCoProcessor,
                            cd_FiniteFloat, cd_Far,
-                           cd_HighcharUnicode, cd_Hints, cd_HppEmit,
+                           cd_HighcharUnicode, cd_Hints, cd_HppEmit, cd_HighEntropyVa,
                            cd_IfDef, cd_IfNDef, cd_IfOpt, cd_If, cd_IfEnd,
                               cd_ImageBase, cd_ImplicitBuild, cd_ImportedData, cd_Include, cd_IoChecks, cd_Inline,
                            cd_DirectiveK,
-                           cd_LibPrefix, cd_LibSuffix, cd_LibVersion, cd_LegacyIfEnd, cd_Link, cd_LocalSymbols, cd_LongStrings,
+                           cd_LibPrefix, cd_LibSuffix, cd_LibVersion, cd_LegacyIfEnd, cd_Link, cd_LocalSymbols, cd_LongStrings, cd_LargeAdressAware,
                            cd_MinStackSize, cd_MaxStackSize, cd_Message, cd_MethodInfo, cd_MinEnumSize,
                               cd_Mode{FreePascal},
-                           cd_CoProcessor, cd_NoDefine, cd_NoInclude,
+                           cd_CoProcessor, cd_NoDefine, cd_NoInclude, cd_NxCompat,
                            cd_ObjExportAll, cd_ObjTypename, cd_OldTypeLayout, cd_OpenStrings, cd_Optimization, cd_OverflowChecks,
-                           cd_PointerMath,
+                           cd_PointerMath, cd_PushOpt, cd_PopOpt,
                            cd_RangeChecks, cd_RealCompatibility, cd_Region, cd_Resource, cd_Rtti, cd_RunOnly, cd_ReferenceInfo, cd_ResourceReserve,
                            cd_SafeDivide, cd_ScopedEnums, cd_StackFrames, cd_StrongLinkTypes, cd_SoPrefix{wie libprefix},
                               cd_SetPeFlags, cd_SetPeOptFlags, cd_SetPeOsVersion, cd_SetPeSubSysVersion, cd_SetPeUserVersion,
                               cd_StackChecking, cd_StringChecks, cd_SmartCallbacks,
-                           cd_TypedAddress, cd_TypeInfo, cd_TextBlock,
+                           cd_TypedAddress, cd_TypeInfo, cd_TextBlock, cd_TsAware,
                            cd_Undef,
                            cd_VarStringChecks, cd_VarPropSetter,
                            cd_Warn, cd_Warnings, cd_WeakPackageUnit, cd_WeakLinkRtti, cd_WriteableConst,
@@ -746,7 +747,9 @@ var
     ( Name: 'ALIGN';                Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+ A A<n>
     ( Name: 'APPTYPE';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // G
     ( Name: 'ASSERTIONS';           Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+ C
-    ( Name: 'ASMMODE';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
+    ( Name: 'ASMMODE';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G-
+    ( Name: 'ALLOWBIND';            Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G+
+    ( Name: 'ALLOWISOLATION';       Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // L-
     ( Name: 'BOOLEVAL';             Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L- B
     ( Name: 'CODEALIGN';            Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   1 ), // L
     { nicht in Doku, aber VCL.Controls.   Siehe https://stackoverflow.com/questions/8498569/what-is-the-meaning-of-c-preload-directive }
@@ -757,6 +760,7 @@ var
     ( Name: 'DESCRIPTION';          Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // G
     ( Name: 'DESIGNONLY';           Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
     ( Name: 'DEFINITIONINFO';       Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G+ Y YD Y+-
+    ( Name: 'DYNAMICBASE ';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+
     ( Name: 'ELSE';                 Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
     ( Name: 'ENDIF';                Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
     ( Name: 'ELSEIF';               Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
@@ -775,6 +779,7 @@ var
     ( Name: 'HIGHCHARUNICODE';      Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
     ( Name: 'HINTS';                Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+
     ( Name: 'HPPEMIT';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
+    ( Name: 'HIGHENTROPYVA';        Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G+
     ( Name: 'IFDEF';                Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
     ( Name: 'IFNDEF';               Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
     ( Name: 'IFOPT';                Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
@@ -796,6 +801,7 @@ var
     ( Name: 'LINK';                 Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   1 ), // L  L<Datei>
     ( Name: 'LOCALSYMBOLS';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G+ L
     ( Name: 'LONGSTRINGS';          Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+ H
+    ( Name: 'LARGEADDRESSAWARE';    Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G-
     ( Name: 'MINSTACKSIZE';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // G  M<min,max>
     ( Name: 'MAXSTACKSIZE';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // G  M<min,max>
     ( Name: 'MESSAGE';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
@@ -806,6 +812,7 @@ var
     ( Name: 'NUMERIC COPROCESSOR';  Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // G- N
     ( Name: 'NODEFINE';             Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
     ( Name: 'NOINCLUDE';            Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
+    ( Name: 'NXCOMPAT';             Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G+
     ( Name: 'OBJEXPORTALL';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G-
     ( Name: 'OBJTYPENAME';          Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // G
     ( Name: 'OLDTYPELAYOUT';        Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
@@ -813,6 +820,8 @@ var
     ( Name: 'OPTIMIZATION';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+ O
     ( Name: 'OVERFLOWCHECKS';       Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L- Q
     ( Name: 'POINTERMATH';          Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
+    ( Name: 'PUSHOPT';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // L-
+    ( Name: 'POPOPT';               Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), // L-
     ( Name: 'RANGECHECKS';          Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L- R
     ( Name: 'REALCOMPATIBILITY';    Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
     ( Name: 'REGION';               Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
@@ -837,7 +846,8 @@ var
     ( Name: 'SMARTCALLBACKS';       Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   1 ), // G+ K veraltet
     ( Name: 'TYPEDADDRESS';         Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G- T
     ( Name: 'TYPEINFO';             Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L- M
-    ( Name: 'TEXTBLOCK';            Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L-
+    ( Name: 'TEXTBLOCK';            Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ), //
+    ( Name: 'TSAWARE';              Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+0 ), // G+
     ( Name: 'UNDEF';                Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio:   0 ),
     ( Name: 'VARSTRINGCHECKS';      Typ: id_CompilerControl; AcSet: [ac_Read]; PrevBlock: @MainBlock[mbCompilerDirs]; OpPrio: 2+1 ), // L+ V
     { nicht in Doku, aber d:\Prog\_Wissen\Buch\Cantu - ObjectPascal\ObjectPascalHandbook-master\10\VarProp\ VarProp.dpr: }
@@ -859,28 +869,29 @@ var
    );
 
 type
-  tCompilerOptions = packed array[low( tCompilerDirektiven ) .. cd_ZeroBasedStrings] of boolean;
+  tCompilerOptions    = packed array[low( tCompilerDirektiven ) .. cd_ZeroBasedStrings] of boolean;
+  tCompilerOptionsArr = array of tCompilerOptions;
 
 const
   cIfOptGlobal  : tCompilerOptions =                 // Werte siehe Kommentar in ControlsListe
                  ( { } false,
-                   {A} true, false, true, false,
+                   {A} true, false,  true,  false, true,  false,
                    {B} false,
                    {C} false, false,
-                   {D} false, true,  false, false, false, true,
-                   {E} false, false, false, false, true,  false, false, true, false, false,
+                   {D} false, true,  false, false, false, true,  true,
+                   {E} false, false, false, false, true,  false, false, true,  false, false,
                    {F} false, false,
-                   {H} false, true,  false,
-                   {I} false, false, false, false, false, false, true,  true, false, true, true,
+                   {H} false, true,  false, true,
+                   {I} false, false, false, false, false, false, true,  true,  false, true,  true,
                    {K} false,
-                   {L} false, true , true , false, false, true,  true,
+                   {L} false, true , true , false, false, true,  true,  false,
                    {M} false, false, false, false, false, false,
-                   {N} false, false, false,
+                   {N} false, false, false, true,
                    {O} false, false, false, true,  true,  false,
-                   {P} false,
+                   {P} false, false, false,
                    {R} false, false, false, false, false, false, false, false,
                    {S} false, false, false, false, false, false, false, false, false, false, false, false, true,
-                   {T} false, false, false,
+                   {T} false, false, false, true,
                    {U} false,
                    {V} true,  false,
                    {W} false, true,  false, false, false,
@@ -901,10 +912,18 @@ const
 
 {$ENDREGION }
 
-{$REGION '-------------- File-Info ---------------' }
+{$REGION '-------------- Compiler-Defines ---------------' }
 
 const
   cDefinesFile = '//Pseudo-IniFile';   // Pseudo-Datei für Compiler-Defines aus ini
+
+  cIniPlatform = 'MSWINDOWS';
+  cIniBuild    = 'RELEASE';
+  cIniVersion  = 'VER330';
+
+{$ENDREGION }
+
+{$REGION '-------------- File-Info ---------------' }
 
 type
   tIdPosInfo  = packed record   { 12 Byte }
@@ -927,44 +946,43 @@ type
   tHotKeys    = '0'..'Z';
 
   pFileInfo   = ^tFileInfo;
-  tFileInfo   = packed record    { 72 Byte }
+  tFileInfo   = packed record    { 112 Byte }
                   FileName   : tFileString;         //  0
-                  FileHash   : tHash;
-                  FileDatum  : TDate;               //  4
+                  FileHash   : tHash;               //  4
+                  FileDatum  : TDate;               //  8
 
-                  ImplStart,                        // 12
-                  ImplNext   : pIdInfo;             // 16   Falls Unit: Pointer um impl-Ids für andere Dateien unsichtbar zu machen
+                  ImplStart,                        // 16
+                  ImplNext   : pIdInfo;             // 20   Falls Unit: Pointer um impl-Ids für andere Dateien unsichtbar zu machen
 
-                  UnitName   : tFileString;         // 20   Falls Unit: Filename ohne .pas
-                  MyUnit     : pIdInfo;             // 24   Unit-Id, z.bei B. System.SysUtils: SysUtils
-                  UsesListe  : pIdPtrInfo;          // 28   Falls Unit: Unit uses alle Units aus dieser Liste (sind damit in Suche wie ein WITH geöffnet)
-                  liMax,
-                  li         : tLineIndex;          // 32   Zeilen# der aktuell zu parsenden Zeile
-                  riMax,
-                  ri         : tRowIndex;           // 34   Spalten# der aktuell zu parsenden Zeile
-                  pi         : pChar;
-                  StrList    : TStringDynArray;     // 36   Inhalt der Datei als Strings[0..n]
-                  prevFile   : tFileIndex_;         // 40   includierende Source
-                  LastTop    : integer;             // 44   TopIndex vom letzten Mal
-                  MyNode     : TTreeNode;           // 48   Falls Unit: tv-Zeiger
-                  MyFileId   : pIdInfo;
-                  NextIdInfo : tIdPosInfo;          // 52   Speicher für schon gescannte IdentifierInfos bei Dateiwechsel
-                  NextFile   : tFileIndex_;         //      aktuelle Include-Datei der aktuellen Unit vor Interface/Implementation
-                  NextLiMax,
-                  NextLi     : tLineIndex;          //      aktuelle Zeile  in dieser include-Datei
-                  NextRiMax,
-                  NextRi     : tRowIndex;           //      aktuelle Spalte in dieser include-Datei
-                  NextPi     : pChar;
-                  MyIndex    : tFileIndex;          // 64   Index in der StringList DateiListe
-                  PidAccess  : tAcTypeSet;          // 66   zum aktuellen Id sind diese Ac-Typen enthalten
-                  NextKeyWord: tKeyWord;            // 67   Speicher für schon gescannte Token bei Dateiwechsel
-                  CompDefines: tAktDefines;         // 68   array of set of 0..31, Index in DefinesList
-                  IfOptLokal : tCompilerOptions;    // 72   array[boolean] über ALLE Compiler-Direktiven, gebraucht wird nur $A..$Z, ScopedEnums
-                 _FillOpt    : array[0..0] of byte; //163
-                  fiFlags    : set of tFileFlags;   //164   Falls Unit: nur das Interface analysieren
-                  LibraryNr  : tLibraryIdx;         //      aus welchem Library-Pfad aud IncludesUnitAll stammt die Datei
-//                 _Fill       : array[0..1] of byte  //162
-                end;                                //164
+                  UnitName   : tFileString;         // 24   Falls Unit: Filename ohne .pas
+                  MyUnit     : pIdInfo;             // 28   Unit-Id, z.bei B. System.SysUtils: SysUtils
+                  UsesListe  : pIdPtrInfo;          // 32   Falls Unit: Unit uses alle Units aus dieser Liste (sind damit in Suche wie ein WITH geöffnet)
+                  liMax,                            // 36
+                  li         : tLineIndex;          // 38   Zeilen# der aktuell zu parsenden Zeile
+                  riMax,                            // 40
+                  ri         : tRowIndex;           // 42   Spalten# der aktuell zu parsenden Zeile
+                  pi         : pChar;               // 44
+                  StrList    : TStringDynArray;     // 48   Inhalt der Datei als Strings[0..n]
+                  prevFile   : tFileIndex_;         // 52   includierende Source
+                  LastTop    : integer;             // 56   TopIndex vom letzten Mal
+                  MyNode     : TTreeNode;           // 60   Falls Unit: tv-Zeiger
+                  MyFileId   : pIdInfo;             // 64
+                  NextIdInfo : tIdPosInfo;          // 68   Speicher für schon gescannte IdentifierInfos bei Dateiwechsel
+                  NextFile   : tFileIndex_;         // 80   aktuelle Include-Datei der aktuellen Unit vor Interface/Implementation
+                  NextLiMax,                        // 84
+                  NextLi     : tLineIndex;          // 86     aktuelle Zeile  in dieser include-Datei
+                  NextRiMax,                        // 88
+                  NextRi     : tRowIndex;           // 90     aktuelle Spalte in dieser include-Datei
+                  NextPi     : pChar;               // 92
+                  MyIndex    : tFileIndex;          // 96   Index in der StringList DateiListe
+                  PidAccess  : tAcTypeSet;          // 98   zum aktuellen Id sind diese Ac-Typen enthalten
+                  NextKeyWord: tKeyWord;            // 99   Speicher für schon gescannte Token bei Dateiwechsel
+                  CompDefines: tAktDefines;         //100   array of set of 0..31, Index in DefinesList
+                  IfOptLokal : tCompilerOptionsArr; //102   array[boolean] über ALLE Compiler-Direktiven, gebraucht werden nur die Schalter-Optionen
+                  fiFlags    : set of tFileFlags;   //108   Falls Unit: nur das Interface analysieren
+                  LibraryNr  : tLibraryIdx;         //109   aus welchem Library-Pfad aud IncludesUnitAll stammt die Datei
+                 _Fill       : array[0..1] of byte  //110
+                end;                                //112
 
 var
   NotFoundFiles : TList< tFileString >;
@@ -976,9 +994,8 @@ var
   LastExtraYes  : string;
 
 const
-  cFirstFileV  =  0;     // Index PseudoFile (aus INI-Options gebaut)
-  cFirstFile   =  {$IFDEF PseudoFile} 1 {$ELSE} 0 {$ENDIF};
-  cKeinFileIndex=-1;
+  cFirstFile    =  0;
+  cKeinFileIndex= -1;
   cExtraLogYes  = 'EndIf_Yes.txt';
   cExtraLogNo   = 'EndIf_No.txt';
 

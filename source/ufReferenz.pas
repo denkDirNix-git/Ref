@@ -600,12 +600,14 @@ begin
     ExpandSub( @IdMainMain );
     ExpandSub( @MainBlock[mbBlock0] );
     AktNode  := MainBlock[mbBlock0].SubBlock;
-    AktIndex := 1;
-    if ( AktNode^.SubBlock = AktNode^.SubLast ) and     // nur ein Id vorhanden ...
-       ( AktNode^.SubBlock <> nil )             and     // ... UND auch keiner darunter
-       ( AktNode^.SubBlock^.SubBlock = nil ) then begin
-      AktNode := AktNode^.NextId;     // nur das Program-begin unter p -> überspringen
-      inc( AktIndex )
+    if not UseClipBoard then begin
+      AktIndex := 1;
+      if ( AktNode^.SubBlock = AktNode^.SubLast ) and     // nur ein Id vorhanden ...
+         ( AktNode^.SubBlock <> nil )             and     // ... UND auch keiner darunter
+         ( AktNode^.SubBlock^.SubBlock = nil ) then begin
+        AktNode := AktNode^.NextId;     // nur das Program-begin unter p -> überspringen
+        inc( AktIndex )
+        end;
       end;
     if AktNode^.SubBlock <> nil then     // ist nil z.B. wenn Units alle nicht gefunden
       ExpandSub( AktNode );
@@ -1241,9 +1243,10 @@ begin
   if frmMain.PopupItmIdSort.Enabled then
     frmMain.PopupItmIdSort.Caption := ifthen( p^.SubBlock = nil, 'Sort this', 'Sort Sub' ) + ' Ids (no undo)';
 
-  frmMain.PopupItmIdRename.Enabled := ( p^.Typ in [id_Unbekannt..id_Impl, id_KeyWord] ) and
-                                      ( p^.AcList <> nil )                              and
-                                      ( p^.IdFlags * [tIdFlags.IsDummy{, tIdFlags.IsOverload}] = [] );
+  frmMain.PopupItmIdRename.Enabled := ( p^.Typ in [id_Unbekannt..id_PascalDirective, id_KeyWord] - [id_Init, id_Final] ) and
+                                      ( p^.AcList <> nil )                                                               and
+                                      ( p^.IdFlags  * [tIdFlags.IsDummy, tIdFlags.IsOverload] = [] )                     and
+                                      ( p^.IdFlags2 * [tIdFlags2.isMultiLine]                 = [] );
 
   frmMain.actIdFilterHierarchy.Enabled := p^.IdFlags * [tIdFlags.IsClassType, tIdFlags.IsInterface] <> [];
 
@@ -1923,17 +1926,12 @@ end;
 procedure TfrmMain.PopupItmIdRenameClick( Sender: TObject );
 const cIdTypeModule = [id_NameSpace..id_Unit];
 var pAc : pAcInfo;
-    ov  : boolean;
-    pIdOld,
     pId : pIdInfo;
-    old,
     new : string;
     sw  : TStreamWriter;
 begin
   {$IFDEF TraceDx} {$IFNDEF TraceDxSub} TraceDx.Call( 'PopupItmIdRenameClick' ); {$ENDIF} {$ENDIF}
   pId := MyTv[AktTv].AktNode;
-  old := pId^.Name;
-  ov  := isOverload in pId^.IdFlags;
 
   { 0. Warning }
   RefactorWarning( 'Rename' );
@@ -1941,7 +1939,7 @@ begin
   { 1. Checks: }
   pAc := pId^.AcList;
   while pAc <> nil do with DateiListe[pAc^.Position.Datei]^ do begin
-    if pAc^.Position.Datei <> cFirstFileV then begin
+    if pAc^.Position.Datei <> high( DateiListe ) then begin
       if tFileFlags.isNotLatest in fiFlags
         then begin MessageDlg( 'Not latest Version of File:' + sLineBreak + FileName, mtError, [mbOK], 0 ); exit end;
 
@@ -1962,23 +1960,27 @@ begin
     then exit;
 
   { 2. get new Name: }
-  new := InputBox( 'Rename Identifier ' + old, 'Enter new name:', old );
-  if ( new = '' ) or ( new.ToLower = old.ToLower ) then exit;
+  new := InputBox( 'Rename Identifier ' + pId^.Name, 'Enter new name:', pId^.Name );
+  if ( new = '' ) or ( new.ToLower = pId^.Name.ToLower ) then exit;
 
   { 3. Check for new already existing: }
-  pIdOld := pId;
-  pId := TListen.SucheIdInBloecken( 0, new );
+  AktDeclareOwner := pId;
+  if pId^.Typ in [id_ConstInt, id_ConstHex, id_ConstBin, id_ConstReal, id_ConstChar, id_ConstStr,
+                  id_CompilerControl, id_CompilerDefine, id_CompilerAttribute,
+                  id_PascalDirective]
+    then pId := TListen.SucheIdUnterId( pId^.PrevBlock, cNoHash, new, false )
+    else pId := TListen.SucheIdInBloecken( 0, new );
   if pId <> nil
     then begin MessageDlg( 'New Name "' + new + '" already exists as' + sLineBreak + TListen.getBlockNameLong( pId, dTrennView ), mtError, [mbOK], 0 ); exit end;
 
   { 4. Doit: }
   ShowMessage( 'List of renamed Files:' +
-               TFncIdentifier.Rename( pIdOld, new ));
+               TFncIdentifier.Rename( AktDeclareOwner, new ));
   mItmFileReParseClick( nil );
 
   { 5. Overload-Warning: }
-  if ov then
-    ShowMessage( 'Please check manually for more Overloads in other Units and  Unresolved-Block which were not renamed!' )
+  if IsOverload in AktDeclareOwner^.IdFlags then
+    ShowMessage( 'Please check manually for more Overloads to be renamed!' )
 end;
 
 {$ENDREGION }
@@ -2888,7 +2890,7 @@ begin
     end;
 
   { alle Dateien einhängen: }
-  for f := cFirstFileV to high( DateiListe ) do with DateiListe[f]^ do
+  for f := cFirstFile to high( DateiListe ) do with DateiListe[f]^ do
     if UnitName = '' then    // include-file
       if prevFile < f   // falls mehrfach includiert ist der letzte includierer evtl noch nicht im Tree. Dann unter "nil" einhängen
         then MyNode := frmMain.tvFiles.Items.AddChildObject( DateiListe[prevFile]^.MyNode, TPath.GetFileName( FileName ), DateiListe[f] )
@@ -3983,7 +3985,7 @@ begin
         { Form-bezogen: }
         { TODO: Font-Dialog}
 
-        UtilitiesDx.TIni.ReadForm( frmMain   );
+        UtilitiesDx.TIni.ReadForm( frmMain );
         pnlAcs.Font.Height := Font.Height;
         SetFontHeight( 0 );
 //          OnAfterMonitorDpiChanged := FormAfterMonitorDpiChanged;
@@ -4116,8 +4118,8 @@ begin
     {$IFDEF SaveTree}
       if not Abbruch { Parser wurde nicht per Escape abgebrochen } then begin
         {$IFDEF VerifyDx}
-        if not VerifyDx.Running   and
-           VerifyDx.CompareStart( TPath.GetFileName( frmMain.dlgOpen.Filename ), {$IFDEF CmpTrace} true {$ELSE} false {$ENDIF} ) then begin
+        if not VerifyDx.Running then begin
+          VerifyDx.CompareStart( TPath.GetFileName( frmMain.dlgOpen.Filename ), {$IFDEF CmpTrace} true {$ELSE} false {$ENDIF} );
           {$IFDEF CmpTree}
             VerifyDx.SetDataFile( frmMain.dlgOpen.Filename + cExtensionTree, true, true );
           {$ENDIF}

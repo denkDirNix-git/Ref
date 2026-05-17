@@ -907,6 +907,17 @@ begin  (* ParseExpression *)
   MinPrio     := high( tPrio );
   repeat
     case Next.Peek of
+      kw_IF: begin
+        VarRef := false;
+        Next.Test( kw_IF );
+        ParseExpression( false, ExprType );
+        Next.Test( kw_THEN );
+        ParseExpression( false, ExprType );
+        Next.Test( kw_ELSE );
+        Result := ParseExpression( false, ExprType );
+        enlargeIntSize( ExprType );                      // integer-Typ ggf vergrößern
+        {$IFDEF TestKompatibel} TestCompatibility( Expected, ExprType ) {$ENDIF}
+        end;
       kw_Literal: begin                                  //    1    'a'    10000.ToString
         VarRef   := false;
         Result   := ParseIdentifier( id_Unbekannt, false );  // wegen 10000.ToString  , 'abc'[1]
@@ -1007,7 +1018,8 @@ begin  (* ParseExpression *)
       end
     else begin                                             // sonst
       VarRef := false;                                     // Expr mit Op kann keine Variablen-Referenz sein
-      if Next.get = kw_IN then begin
+      if ( Next.get = kw_IN )   or                                                                     // Operator "IN"
+         (( Next.Token = kw_NOT ) and ( OverNextKw = kw_IN ) and ( Next.get = kw_IN )) then begin      // Operator "NOT IN", kompliziert zur Unterscheidung zu "IS NOT"
         if ExprType = nil
           then DummyIdSet.TypeNr := cEmptySet
           else DummyIdSet.TypeNr := GetTypeNrOfSet( ExprType );

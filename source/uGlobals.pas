@@ -8,7 +8,7 @@ interface
 
 const
   cProgName       = 'Ref';
-  cVersion        = '2.0';
+  cVersion        = '2.1';
   cDebug          = {$IFDEF DEBUG} ' [DEBUG]' {$ELSE} '' {$ENDIF};
   cSubVersion     = '.0';
   cPlusMinus      : array[boolean] of char = ( '-','+' );    // false -> -      true -> +

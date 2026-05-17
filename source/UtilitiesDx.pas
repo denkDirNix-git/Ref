@@ -292,6 +292,7 @@ begin
   IniReg.WriteInteger( f.Name, cWidth     , f.Width          );
   IniReg.WriteInteger( f.Name, cHeight    , f.Height         );
   IniReg.WriteInteger( f.Name, cMaximized , ord( f.WindowState = TWindowState.wsMaximized ) );
+  IniReg.UpdateFile;
 
   IniReg.Free
 end;
@@ -318,6 +319,7 @@ begin
   if Count > 0 then
     for var i := 0 to Count-1 do
       IniReg.WriteString( Key, cItem + i.ToString, StrList[i]);
+  IniReg.UpdateFile;
   IniReg.Free
 end;
 {$ENDREGION TIni}

@@ -51,9 +51,7 @@ var
   ProgType  : tKeyWord;
   FirstUnit : tFileInfo;    // OHNE LibraryPath-Flag
   IdFile    : tIdPosInfo;
-  {$IFDEF PseudoFile}
   PseudoFile: tStringDynArray;  // StringList (ohne physische Datei) für Pseudeo-Acs auf $Define und Gültigkeitsbereiche aus Projekt-Optionen (Ref und IDE)
-  {$ENDIF}
 { ---------------------------------------------------------------------------------------- }
 
 {$REGION '----------- Parse PROG / UNIT---------------' }
@@ -452,6 +450,9 @@ var s:  string;
     i :  integer;
     ip: tIdPosInfo;
     p : pIdInfo;
+    df: integer;
+    pa,
+    pn: pAcInfo;
 
   procedure WriteErrorData( const m: string );
   const cTrenn  = '   ';
@@ -491,7 +492,7 @@ var s:  string;
   end;
 
 begin
-  {$IFDEF TraceDx} TraceDx.Clear; TraceDx.Call( uParse, 'TParser.Parse' ); {$ENDIF}
+  {$IFDEF TraceDx} TraceDx.Clear; TraceDx.CallRetTime( uParse, 'TParser.Parse', rtBool, Result, 'ParseTime' ); {$ENDIF}
   Result := false;
   GuiParser.RepaintLstBox := rl;
 
@@ -517,6 +518,7 @@ begin
   assert( DefinesHigh < cDefinesBits, 'zu viele Defines' );
   SetLength( Defines, cDefinesBits );
   UserDefines := DefinesHigh + 1 - cPreDefines;
+  df := UserDefines + cPreDefines - 1;
 
   try
     pAktUnit := @FirstUnit;   // Dummy mit Flag für die Pre-ParserStart-InsertId()-Aufrufe
@@ -557,25 +559,36 @@ begin
     MainBlock[mbFilenames].SubBlock := nil;
     MainBlock[mbFilenames].SubLast  := nil;
 
-    {$IFDEF PseudoFile}
+    { Jetzt geht's los }
+    ParserStart( f );
+
     { Virtuelle Datei mit Optionen aus Ref und IDE in bauen und IdAcs eintragen: }
-    pAktUnit := @FirstUnit;                       // Dummy mit Flag für die Pre-ParserStart-InsertId()-Aufrufe
+//    pAktUnit := @FirstUnit;                       // Dummy mit Flag für die Pre-ParserStart-InsertId()-Aufrufe
     AktDeclareOwner := @MainBlock[mbDefines];
-    SetLength( PseudoFile, 4 + DefinesHigh + 4 + high( UnitPrefixes ) * 3 );
+    SetLength( PseudoFile, 4 + df + 4 + high( UnitPrefixes ) * 3 );
     TListen.AddFile( cDefinesFile, false );
-    PseudoFile[1] := '// Daten aus Projekt-Optionen als Pseude-Code:';
-    PseudoFile[3] := '// Teil A:   Defines aus den Ref-Optionen:';
-    for i := 0 to DefinesHigh do begin
+    PseudoFile[1] := '// Daten aus den Ref-Optionen für dieses Projekt als Pseude-Code:';
+    PseudoFile[3] := '// Teil A:   Defines:';
+    for i := 0 to df do begin
       PseudoFile[4+i] := '{$DEFINE ' + Defines[i] + ' }';
       ip.Pos.Datei := high( DateiListe ); ip.Pos.Zeile := 4+i; ip.Pos.Spalte := 9; ip.Pos.Laenge := length( Defines[i] );
-      p := TListen.InsertId( Defines[i], AktDeclareOwner, id_CompilerDefine, false );
-      TListen.AddAc( p, nil, ip.Pos, ac_Write )
+      p  := TListen.InsertId( Defines[i], AktDeclareOwner, id_CompilerDefine, false );
+      pa := p^.LastAc;
+      TListen.AddAc( p, nil, ip.Pos, ac_Write );
+      if pa <> nil then begin
+        // Letzten Ac (den aus dem Pseudo-File) zum ersten machen:
+        pn := p^.LastAc;
+        pn^.NextAc := p^.AcList;
+        p ^.AcList := pn;
+        p ^.LastAc := pa;
+        pa^.NextAc := nil
+        end
       end;
-    vi := 4 + DefinesHigh + 2;
+    vi := 4 + df + 2;
 
     {$IFDEF UnitPrefixe}
     PseudoFile[vi-1] := '';
-    PseudoFile[vi] := '// Teil B:   Gültigkeitsbereiche aus den Ref-Optionen:';
+    PseudoFile[vi] := '// Teil B:   Gültigkeitsbereiche:';
     inc( vi );
     for i := 1 to high( UnitPrefixes ) do begin
       PseudoFile[vi] := 'uses ' + UnitPrefixes[i] + '*;';
@@ -592,10 +605,7 @@ begin
     SetLength( PseudoFile, vi );
     DateiListe[high( DateiListe )].StrList := PseudoFile;
     pAktUnit := nil;
-    {$ENDIF}
 
-    { Jetzt geht's los }
-    ParserStart( f );
     Result := true
   except
     {$if not (defined(Ref) and defined(Release))}

@@ -72,7 +72,7 @@ uses
 
 const
   cExit        = 'Exit';
-  cMaxSystemId = 284;
+  cMaxSystemId = 286;
 
 type
   {$IFDEF TraceDx} uSys = class end; {$ENDIF}
@@ -357,6 +357,8 @@ var
             ( Name: 'sLineBreak' ; Typ: id_Const; MyType: @IdArray0[ord( syString  )]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coStr  ),
             ( Name: 'RTLVersion' ; Typ: id_Const; MyType: @IdArray0[ord( sySingle  )]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coReal ),
             ( Name: 'CompilerVersion';Typ:id_Const;MyType:@IdArray0[ord( sySingle  )]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coReal ),
+            ( Name: 'GetRTLVersion'     ;Typ: id_Func; MyType: @IdArray0[ord( syWord  )]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coInt ),
+            ( Name: 'GetCompilerVersion';Typ: id_Func; MyType: @IdArray0[ord( syWord  )]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coInt ),
             ( Name: 'DebugHook'  ; Typ: id_Var   ; MyType: @IdArray0[ord( syByte   )]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coInt  ),
             ( Name: 'HINST'      ; Typ: id_Type ;                                      IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coInt  ),
             ( Name: 'MainInstance';Typ: id_Var   ; MyType: pIdInfo(1); IdFlags: [tIdFlags.IdUnused]; IdFlags2: [tIdFlags2.InterfaceSection]; TypeGroup: coInt ),

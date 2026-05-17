@@ -52,7 +52,7 @@ const
 var
   FileIni : TMemIniFile;
   Filename: string;        // Kopie von OpenDialog.Filename, wird im TFileIO.Load/Rename() gesetzt
-  Platform, Version, Build: integer;
+  Platform, Version, Build: string;
 
 
 {$REGION '-------------- DProj  ---------------' }
@@ -237,12 +237,12 @@ begin
       FileOptions.SearchPathUnitNoMacro    := CheckMacro( FileOptions.SearchPathUnit );
       FileOptions.SearchPathUnitNoMacro    := CheckPaths( FileOptions.SearchPathUnitNoMacro );
 
-      Platform                      := ReadInteger( cIni[tIni.SecProg], cIni[tIni.CompilePlatform], 0 );
-      Version                       := ReadInteger( cIni[tIni.SecProg], cIni[tIni.ProgVersion    ], frmFileOptions.cmbBoxVersion.Items.Count-1 );
-      Build                         := ReadInteger( cIni[tIni.SecProg], cIni[tIni.DebugRelease   ], 0 );
-      FileOptions.DefinedSymbols    := frmFileOptions.cmbBoxPlatform.Items[Platform] + TPath.PathSeparator +
-                                       frmFileOptions.cmbBoxVersion .Items[Version]  + TPath.PathSeparator +
-                                       frmFileOptions.cmbBoxBuild   .Items[Build];
+      Platform                      := ReadString( cIni[tIni.SecProg], cIni[tIni.CompilePlatform], cIniPlatform );
+      Version                       := ReadString( cIni[tIni.SecProg], cIni[tIni.ProgVersion    ], cIniVersion  );
+      Build                         := ReadString( cIni[tIni.SecProg], cIni[tIni.DebugRelease   ], cIniBuild    );
+      FileOptions.DefinedSymbols    := Platform + TPath.PathSeparator +
+                                       Version  + TPath.PathSeparator +
+                                       Build;
       ProjDefines                   := ReadString ( cIni[tIni.SecProg], cIni[tIni.Defines       ], EmptyStr );
       if ProjDefines <> EmptyStr then
         FileOptions.DefinedSymbols  := FileOptions.DefinedSymbols + TPath.PathSeparator + ProjDefines.ToUpperInvariant;
@@ -312,9 +312,9 @@ begin
     chkBoxHideLibraryInternals.Checked := FileOptions.ProjectUsedOnly;
     chkBoxUseSystemRef   .Checked := FileOptions.UseSystemRef;
     chkBoxLongStrings    .Checked := IfOptGlobal[cd_LongStrings];
-    cmbBoxPlatform       .ItemIndex := Platform;
-    cmbBoxVersion        .ItemIndex := Version;
-    cmbBoxBuild          .ItemIndex := Build;
+    cmbBoxPlatform       .Text    := Platform;
+    cmbBoxVersion        .Text    := Version;
+    cmbBoxBuild          .Text    := Build;
     if ShowModal = mrOk then begin
       result := true;
 
@@ -362,24 +362,24 @@ begin
         end;
       {$ENDIF}
 
-      if ( cmbBoxPlatform.ItemIndex <> Platform ) then begin
-        Platform := cmbBoxPlatform.ItemIndex;
-        FileIni.WriteInteger( cIni[tIni.SecProg], cIni[tIni.CompilePlatform ], Platform );
+      if ( cmbBoxPlatform.Text <> Platform ) then begin
+        Platform := cmbBoxPlatform.Text;
+        FileIni.WriteString( cIni[tIni.SecProg], cIni[tIni.CompilePlatform ], Platform );
         end;
 
-      if ( cmbBoxVersion.ItemIndex <> Version ) then begin
-        Version := cmbBoxVersion.ItemIndex;
-        FileIni.WriteInteger( cIni[tIni.SecProg], cIni[tIni.ProgVersion ], Version );
+      if ( cmbBoxVersion.Text <> Version ) then begin
+        Version := cmbBoxVersion.Text;
+        FileIni.WriteString( cIni[tIni.SecProg], cIni[tIni.ProgVersion ], Version );
         end;
 
-      if ( cmbBoxBuild.ItemIndex <> Build ) then begin
-        Build := cmbBoxBuild.ItemIndex;
-        FileIni.WriteInteger( cIni[tIni.SecProg], cIni[tIni.DebugRelease ], Build );
+      if ( cmbBoxBuild.Text <> Build ) then begin
+        Build := cmbBoxBuild.Text;
+        FileIni.WriteString( cIni[tIni.SecProg], cIni[tIni.DebugRelease ], Build );
         end;
 
-      FileOptions.DefinedSymbols := frmFileOptions.cmbBoxPlatform.Text + TPath.PathSeparator +
-                                    frmFileOptions.cmbBoxVersion .Text + TPath.PathSeparator +
-                                    frmFileOptions.cmbBoxBuild   .Text;
+      FileOptions.DefinedSymbols := Platform + TPath.PathSeparator +
+                                    Version  + TPath.PathSeparator +
+                                    Build;
       if edtDefinedSymbols.Text <> '' then
         FileOptions.DefinedSymbols := FileOptions.DefinedSymbols + TPath.PathSeparator + uppercase( edtDefinedSymbols.Text );
 
@@ -469,13 +469,12 @@ begin
     FileOptions.SearchPathUnitNoMacro    := CheckMacro( FileOptions.SearchPathUnit );
     FileOptions.SearchPathUnitNoMacro    := CheckPaths( FileOptions.SearchPathUnitNoMacro );
 
-//    Platform                      := ReadInteger( cIni[tIni.SecProg], cIni[tIni.CompilePlatform], 0 );
-//    Version                       := ReadInteger( cIni[tIni.SecProg], cIni[tIni.ProgVersion    ], frmFileOptions.cmbBoxVersion.Items.Count-1 );
-//    Build                         := ReadInteger( cIni[tIni.SecProg], cIni[tIni.DebugRelease   ], 0 );
-//    FileOptions.DefinedSymbols    := frmFileOptions.cmbBoxPlatform.Items[Platform] + TPath.PathSeparator +
-//                                     frmFileOptions.cmbBoxVersion .Items[Version]  + TPath.PathSeparator +
-//                                     frmFileOptions.cmbBoxBuild   .Items[Build];
-    FileOptions.DefinedSymbols    := 'MSWINDOWS;VER330;RELEASE';
+    Platform                             := ReadString( cIni[tIni.SecProg], cIni[tIni.CompilePlatform], cIniPlatform );
+    Version                              := ReadString( cIni[tIni.SecProg], cIni[tIni.ProgVersion    ], cIniVersion  );
+    Build                                := ReadString( cIni[tIni.SecProg], cIni[tIni.DebugRelease   ], cIniBuild    );
+    FileOptions.DefinedSymbols           := Platform + TPath.PathSeparator +
+                                            Version  + TPath.PathSeparator +
+                                            Build;
     ProjDefines                   := ReadString ( cIni[tIni.SecProg], cIni[tIni.Defines       ], EmptyStr );
     if ProjDefines <> EmptyStr then
       FileOptions.DefinedSymbols  := FileOptions.DefinedSymbols + TPath.PathSeparator + ProjDefines.ToUpperInvariant;

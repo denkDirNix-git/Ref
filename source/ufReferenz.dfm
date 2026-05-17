@@ -197,7 +197,7 @@ object frmMain: TfrmMain
         Left = 1
         Top = 0
         Width = 174
-        Height = 26
+        Height = 29
         Hint = 'Search incremental. Use "." at Start or End to change behaviour'
         Margins.Left = 4
         Margins.Top = 4
@@ -342,6 +342,8 @@ object frmMain: TfrmMain
           OnKeyDown = lstBoxKeyDown
           OnMouseDown = lstBoxMouseDown
           OnMouseMove = lstBoxMouseMove
+          ExplicitWidth = 846
+          ExplicitHeight = 608
         end
       end
       object pnlFiles: TPanel
@@ -376,6 +378,7 @@ object frmMain: TfrmMain
           Visible = False
           OnClick = lstBoxHotKeyClick
           OnDrawItem = lstBoxHotKeyDrawItem
+          ExplicitHeight = 608
         end
         object lstBoxHistory: TListBox
           Left = 1
@@ -392,6 +395,7 @@ object frmMain: TfrmMain
           ItemHeight = 20
           TabOrder = 2
           Visible = False
+          ExplicitHeight = 608
         end
         object tvFiles: TTreeView
           Left = 1
@@ -1941,7 +1945,7 @@ object frmMain: TfrmMain
     end
     object pItmIdFilterName: TMenuItem
       Action = actIdFilterName
-      Caption = 'Fillter "exact Name"'
+      Caption = 'Filter "exact Name"'
     end
     object pItmIdFilterHierarchy: TMenuItem
       Action = actIdFilterHierarchy

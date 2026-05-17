@@ -361,6 +361,7 @@ type  tGetMode = ( moMain, moFile, moFileString, moString, moDefine, moIF );
 { true, wenn Include gefunden }
 var NextControl: tIdPosInfo;
     s          : string;
+    optOn,
     opt        : boolean;
     cond       : shortInt;
     i, idx     : integer;
@@ -439,8 +440,8 @@ var NextControl: tIdPosInfo;
        begin
          {$IFDEF TraceDx} TraceDx.Send( uScan, 'SetOption ' + ControlsListe[Result].Name, b ); {$ENDIF}
          if ControlsListe[Result].OpPrio and 1 = 1
-           then pAktUnit^.IfOptLokal [Result] := b       // lokal
-           else           IfOptGlobal[Result] := b       // global
+           then pAktUnit^.IfOptLokal [high( pAktUnit^.IfOptLokal )][Result] := b       // lokal
+           else           IfOptGlobal                              [Result] := b       // global
        end;
 
      begin
@@ -742,18 +743,42 @@ case Result of
      NextControl.Pos.Datei  := MyIndex;
      NextControl.Pos.Zeile  := li;
      NextControl.Pos.Spalte := ri;
-     NextControl.Pos.Laenge := 1;
-     NextControl.Str := PeekCharInc;
-     Result := cCompilerDirektivenOpt[NextControl.Str[0].ToUpper];   // abgekürzte (ein Buchstabe) Direktive
-     InsertCompilerDirektiveReference( NextControl, Result );
+
+     if LookAheadCh in ['+','-'] //(NextControl.Pos.Laenge = 1   // abgekürzte (ein Buchstabe) Direktive
+       then begin
+         NextControl.Str        := PeekCharInc;
+         NextControl.Pos.Laenge := 1;
+         Result := cCompilerDirektivenOpt[NextControl.Str[0].ToUpper];
+         InsertCompilerDirektiveReference( NextControl, Result );
+         optOn  := PeekCharInc = '+'
+         end
+       else begin
+         NextControl.Str        := '';
+         NextControl.Pos.Laenge := 0;
+         GetNextControl( moMain );
+         Result := TestDirective;
+         while PeekChar = cBlank do PeekInc;            // Zwischen-Blanks
+         optOn := upcase( LookAheadCh ) = 'N';          // ON?
+         end;
      inc (IfDefZaehler);
      if ControlsListe[Result].OpPrio and 1 = 1
-       then opt := pAktUnit^.IfOptLokal [Result]
-       else opt :=           IfOptGlobal[Result];
-     if ( IfDefBool [IfDefZaehler-1] = 0 ) and ( opt = ( PeekCharInc = '+' ) )
+       then opt := pAktUnit^.IfOptLokal [high( pAktUnit^.IfOptLokal )][Result]
+       else opt :=           IfOptGlobal                              [Result];
+     if ( IfDefBool [IfDefZaehler-1] = 0 )  and  ( opt = optOn )
        then IfDefBool [IfDefZaehler] := 0
        else IfDefBool [IfDefZaehler] := 1
-   end;
+     end;
+
+ cd_PushOpt:
+   with pAktFile^ do begin
+     SetLength( IfOptLokal, high( IfOptLokal ) + 2 );
+     IfOptLokal[high( IfOptLokal )] := IfOptLokal[high( IfOptLokal ) - 1]
+     end;
+
+ cd_PopOpt:
+     if high( pAktFile^.IfOptLokal ) > 0
+       then SetLength( pAktFile^.IfOptLokal, high( pAktFile^.IfOptLokal ) )
+       else Error( errDirektive, 'PopOpt' );
 
  cd_ELSEIF: begin
    cond := IfCondition;
@@ -777,6 +802,16 @@ end;
 function  IsValidIdChar( c: char ): boolean;
 begin
   Result := c.IsLetterOrDigit or ( c = '_' )
+end;
+
+function IsMultiLineStart: integer;
+var len: integer;
+begin
+  Result := 0;
+  len := pAktFile^.riMax - pAktFile^.ri + 1;
+  if string.EndsText( StringOfChar( '''', len ), pAktFile^.pi )
+    then if not odd( len )
+           then Result := len + 1
 end;
 
 procedure SkipBlanks;
@@ -856,6 +891,8 @@ var Weiter: boolean;
 
    procedure SearchNextComment;
    var Gefunden: boolean;
+       ml      : integer;
+       mlStr   : string;
    begin
   {$IFDEF TraceDx} TraceDx.Call( uScan, 'SearchNextComment' ); {$ENDIF}
    Gefunden := false;
@@ -864,7 +901,30 @@ var Weiter: boolean;
       '/' : if LookAhead( '/' ) then
               pAktFile^.ri := pAktFile^.riMax + 1       // falls "//"-Kommentar im IFDEF-Block, der Apostroph enthält
             else PeekInc;
-      '''': begin repeat PeekInc until PeekChar = ''''; PeekInc end;
+      '''': begin
+              // Im String können $IF's vorkommen, deshalb komplett überlesen:
+              PeekInc;
+              if PeekChar = '''' then begin
+                ml := IsMultiLineStart;
+                if ml = 0 then
+                  // normaler String der Länge 0 oder mit Apostroph ''''
+                  PeekInc
+                else begin
+                  mlStr := StringOfChar( '''', ml );      //  3 oder 5 usw, muss nur ungerade sein
+                  repeat JumpNextLine;
+                      // MultiLine endet mit <Blanks>'''
+                  until  pAktFile^.StrList[pAktFile^.li].TrimLeft.StartsWith( mlStr);
+                  pAktFile^.ri := pAktFile^.StrList[pAktFile^.li].IndexOf( mlStr ) + length( mlStr );
+                  inc( pAktFile^.pi, pAktFile^.ri )
+                  end
+                end
+              else begin
+                // normaler String 'abc'
+                repeat PeekInc
+                until  PeekChar = '''';
+                PeekInc
+                end;
+            end;
       '"' : {if ParserState.AssemblerCode        // Abfrage sinnlos denn "asm" wird im ifdef-Abschnitt nicht erkannt
               then} begin repeat PeekInc until PeekChar = '"'; PeekInc end;   // wg mov al,"'"
 //              else inc (pAktFile^.ri);
@@ -933,9 +993,11 @@ var p: integer;
   end;
 
   procedure NextString;
-  const cMultiLineDelim = '''''''';
+//  const cMultiLineDelim = '''''''';
   var MultiLine, MultiLinePart, Special: boolean;
-      pi: integer;
+      pi   : integer;
+      ml   : integer;
+      mlStr: string;
 
     function SetLiteralStringChar: boolean;
     var dummy: integer;
@@ -958,26 +1020,25 @@ var p: integer;
                 PeekInc;
                 MultiLinePart := false;
 
-                if not InString and ( PeekChar = '''' ) and LookAhead( '''' ) then
-
-                  if  ( pAktFile^.ri+1 = pAktFile^.riMax ) then begin
-
-                    // MultiLine beginnt mit '''LF
+                if not InString and ( PeekChar = '''' ) and LookAhead( '''' ) then begin
+                  ml := IsMultiLineStart;
+                  if ml > 0 then begin
                     MultiLinePart := true;
+                    mlStr := StringOfChar( '''', ml );      //  3 oder 5 usw, muss nur ungerade sein
 
                     if not MultiLine then begin
                       MultiLine := true;
                       NextId.Str := pAktFile^.StrList[pAktFile^.li].Substring( NextId.Pos.Spalte );
-                      NextId.Pos.Laenge := Length( NextId.Str )
+                      NextId.Pos.Laenge := ml
                       end;
 
                     repeat JumpNextLine;
-                           pi := pAktFile^.StrList[pAktFile^.li].IndexOf( cMultiLineDelim );
-                    // MultiLine endet mit <Blanks>'''
-                    until  ( pi <> -1 ) and pAktFile^.StrList[pAktFile^.li].TrimLeft.StartsWith( cMultiLineDelim );
-                    pAktFile^.ri := pi + length( cMultiLineDelim );
-                    inc( pAktFile^.pi, pAktFile^.ri );
+                    until  pAktFile^.StrList[pAktFile^.li].TrimLeft.StartsWith( mlStr);
+                    pi := pAktFile^.StrList[pAktFile^.li].IndexOf( mlStr );   // Einrückung für alle Zeilen
+                    pAktFile^.ri := pi + length( mlStr );
+                    inc( pAktFile^.pi, pAktFile^.ri )
                     end;
+                  end;
 
                 if MultiLinePart
                   then MultiLinePart := false
@@ -1003,8 +1064,13 @@ var p: integer;
     until Ende;
 
     if MultiLine then begin
+      // Den String aus den Zeilen zusammensetzen
       for var i := NextId.Pos.Zeile + 1 to pAktFile^.li - 1 do NextId.Str := NextId.Str + pAktFile^.StrList[i].Substring( pi ) + '#13';
-      NextId.Str := NextId.Str.Substring( 0, length( NextId.Str ) - 3 ) + ''''''''
+      NextId.Str := NextId.Str.Substring( 0, length( NextId.Str ) - 3 ) + mlStr;
+      // Als String-Position im Source wird die erste Zeile genommen (mehrere Zeilen werden vom Viewer nicht unterstützt)
+//      inc( NextId.Pos.Zeile );       // vom Id wird im Viewer
+//      NextId.Pos.Spalte := pi;                  // die erste Zeile markiert
+//      NextId.Pos.Laenge := length( pAktFile^.StrList[NextId.Pos.Zeile] ) - pi
       end
     else
       pChar2String;
@@ -1018,7 +1084,9 @@ var p: integer;
       TListen.CopyTypeInfos( pSysId[syString], LastLiteral )
       end;
     if Special then
-      include( LastLiteral^.IdFlags2, tIdFlags2.LiteralSpecial )
+      include( LastLiteral^.IdFlags2, tIdFlags2.LiteralSpecial );
+    if MultiLine then
+      include( LastLiteral^.IdFlags2, tIdFlags2.isMultiLine )
     end;
 
   procedure NextIdentifier;
@@ -1372,14 +1440,16 @@ begin
       '_': ;   // kann nur als Id-Teil vorkommen
       '{': begin
              if s[i+1] = '$' then
-               Error( errNotImplemented );
+               exit( false );
+//               Error( errNotImplemented );
              repeat inc( i )
              until  s[i] = '}';
              inc( i )
            end;
       '(': if s[i+1] = '*' then begin
-             if s[i+2] = '$'
-               then Error( errNotImplemented )
+             if s[i+2] = '$' then
+               exit( false )
+//               Error( errNotImplemented )
                else inc( i );
              repeat inc( i )
              until ( s[i] = '*' ) and ( s[i+1] = ')' );

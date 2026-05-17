@@ -497,7 +497,7 @@ begin
     MyUnit    := nil;
     FileName  := s;
     try
-      if UseClipBoard and ( high( DateiListe ) = -1 ) then begin
+      if UseClipBoard and ( high( DateiListe ) = cKeinFileIndex ) then begin
         FileDatum := 0;
         StrList   := Clipboard.AsText.Split( [sLineBreak, #10] )
         end
@@ -516,7 +516,8 @@ begin
     SetLength( CompDefines, ( DefinesHigh div cDefinesBits ) + 1 );    // normalerweise 1 Element. Falls aber mehr als 32 Defines existieren: entsprechend mehr Platz reservieren
     PCardinal( @CompDefines[0] )^ := ( 1 shl ( cPreDefines + UserDefines ) ) - 1;      // [0,1,2] für WINDOWS, VERxxx, DEBUG
     { für Compiler-Options: }
-    IfOptLokal := IfOptGlobal    // dort sind für lokale Options die Standardwerte
+    SetLength( IfOptLokal, 1 );
+    IfOptLokal[0] := IfOptGlobal    // dort sind für lokale Options die Standardwerte
     end;
   SetLength( DateiListe, high( DateiListe ) + 2 );
   DateiListe[high( DateiListe )] := f;
@@ -699,7 +700,7 @@ var AnzahlDateien: tFileIndex_;
       end   // Unit schon bekannt
     else
       inc( fi );
-  if not (( UseClipBoard and ( fi = 0 )) or SearchUnitInPaths ) then
+  if not (( UseClipBoard and ( fi = cFirstFile )) or SearchUnitInPaths ) then
     exit( false );   // Unit nicht vorhanden
 
   { File als Identifier eintragen: }
@@ -1240,7 +1241,7 @@ begin
       SuchBlock: begin
                    Result := TListen.SucheIdUnterId( b, h, IdStr, true );
                    if Result = nil then
-                     if b^.Typ in [id_Program, id_Unit] then     // Korrektur: Bei ERSTER Unit ist Schluss
+                     if b^.Typ in [id_MainBlock, id_Program, id_Unit] then     // Korrektur: Bei ERSTER Unit ist Schluss
                        inc( SuchEbene )
                      else begin
                        { In Class INNERHALB anderer Class darf ich Ids der äußeren Class nicht finden.
@@ -2720,7 +2721,7 @@ var f: tFileIndex_;
 begin
   {$IFDEF TraceDx} TraceDx.Send( uList, 'DisposeListen, Anzahl Dateien' , high( DateiListe )); {$ENDIF}
   { Datei-Infos freigeben. Element 0 wurde nicht benutzt: }
-  for f := cFirstFileV to high( DateiListe ) {AnzahlDateien} do
+  for f := cFirstFile to high( DateiListe ) do
     TListen.DisposeFileInfo( DateiListe[f] );
   SetLength( DateiListe, 0 );
   pAktFile := nil;

@@ -47,13 +47,15 @@ object frmNassi: TfrmNassi
     Margins.Bottom = 4
     Align = alClient
     TabOrder = 0
+    ExplicitWidth = 828
+    ExplicitHeight = 795
     DesignSize = (
       834
       796)
     object PaintBox: TPaintBox
       Left = 1
       Top = 1
-      Width = 801
+      Width = 795
       Height = 791
       Margins.Left = 4
       Margins.Top = 4
@@ -66,7 +68,7 @@ object frmNassi: TfrmNassi
       ExplicitHeight = 793
     end
     object ScrollBar: TScrollBar
-      Left = 803
+      Left = 797
       Top = 3
       Width = 21
       Height = 790
@@ -80,7 +82,8 @@ object frmNassi: TfrmNassi
       SmallChange = 12
       TabOrder = 0
       OnChange = ScrollBarChange
-      ExplicitLeft = 809
+      ExplicitLeft = 791
+      ExplicitHeight = 789
     end
   end
   object MainMenu: TMainMenu
