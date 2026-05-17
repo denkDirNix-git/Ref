@@ -1,7 +1,6 @@
 
 {$ZEROBASEDSTRINGS ON}                   // auch unter Windows 0-Basis
 { $SCOPEDENUMS ON}                        // Enums brauchen TypNamen
-{$DEFINE PseudoFile}
 
 //  ------------------------------------------------------------------------------------------------
 
