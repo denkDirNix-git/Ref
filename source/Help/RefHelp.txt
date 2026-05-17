@@ -2,7 +2,7 @@
 Was tut das Tool
 ----------------
 0 Input ist übersetzbarer Delphi-Code: Projekt, Library, Package oder einzelne Unit.
-  Implementiert ist der Sprachumfang von Delphi 11.3
+  Implementiert ist der Sprachumfang von Delphi 13
 
 1 Source-Files werden geparst und alle Elemente entsprechend der statischen Blockstruktur
   mit Typ-Informationen in einen TreeView einsortiert. Elemente sind im wesentlichen die
