@@ -667,9 +667,21 @@ begin
               {$ENDIF}
               '''': begin
                       IsStatement;
-                      repeat
-                        repeat incSpalte until ( pc^ = '''' )
-                      until not TestCharInc( '''' );
+                      var ml := AktPos.sp;
+                      while pc^ = '''' {TestCharInc( '''' )} do
+                        if AktPos.sp = length( Source.Lines[AktPos.ze] ) - 1 then begin
+                          // Multiline
+                          var mlStr := StringOfChar( '''', length( Source.Lines[AktPos.ze] ) - ml );
+                          repeat incZeile
+                          until Source.Lines[AktPos.ze].TrimLeft.StartsWith( mlStr );
+                          aktPos.sp := Source.Lines[AktPos.ze].IndexOf( mlStr );
+                          aktPos.sp := aktPos.sp + length( mlStr ) - 1;
+                          pc := @Source.Lines[AktPos.ze][AktPos.sp + 1]
+                          end
+                        else begin
+                          repeat incSpalte until TestCharInc( '''' );
+                          incSpalte
+                          end
                     end;
               ':' : begin
                       IsStatement;
